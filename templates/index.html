@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dropbox File Uploader</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        input[type="file"] {
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007BFF;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+        .file-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .file-list li {
+            padding: 5px 0;
+        }
+        .file-list a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+        .file-list a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload Image to Dropbox</h1>
+        <form id="uploadForm">
+            <label for="fileInput">Select an image to upload:</label>
+            <input type="file" id="fileInput" name="file" accept="image/*" required>
+            <button type="submit">Upload</button>
+        </form>
+        <div class="result" id="result"></div>
+        <hr>
+        <h2>List Files in Dropbox Folder</h2>
+        <form id="listFilesForm">
+            <label for="folderPath">Enter Dropbox folder path (e.g., /Images):</label>
+            <input type="text" id="folderPath" name="folder_path" placeholder="/" required>
+            <button type="submit">List Files</button>
+        </form>
+        <div class="result" id="fileList"></div>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a file!');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('result').innerHTML = `<p>File uploaded successfully!</p><p>Download URL: <a href="${data.link}" target="_blank">${data.link}</a></p>`;
+                } else {
+                    document.getElementById('result').innerHTML = `<p>Error uploading file: ${data.error}</p>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = `<p>There was an error with the upload. Please try again.</p>`;
+            });
+        });
+
+        document.getElementById('listFilesForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const folderPath = document.getElementById('folderPath').value;
+
+            fetch(`/list_files?folder_path=${encodeURIComponent(folderPath)}`, {
+                method: 'GET',
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.files.length > 0) {
+                        let listHtml = '<ul class="file-list">';
+                        data.files.forEach(file => {
+                            if (file['.tag'] === 'file') {
+                                listHtml += `<li>${file.name}</li>`;
+                            }
+                        });
+                        listHtml += '</ul>';
+                        document.getElementById('fileList').innerHTML = listHtml;
+                    } else {
+                        document.getElementById('fileList').innerHTML = `<p>No files found in folder '${folderPath}'.</p>`;
+                    }
+                } else {
+                    document.getElementById('fileList').innerHTML = `<p>Error listing files: ${data.error}</p>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('fileList').innerHTML = `<p>There was an error listing the files. Please try again.</p>`;
+            });
+        });
+    </script>
+</body>
+</html>
